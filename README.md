@@ -1,4 +1,4 @@
 graphdat-sdk-python
 ===================
 
-Graphdat SDK for Python
+Python module for Graphdat. To find out more about graphdat visit http://dashboard.graphdat.com/landing
