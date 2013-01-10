@@ -9,8 +9,8 @@ class Wrapper(object):
 
     def __call__(self, environ, start_response):
         print("Wrapper.__call__", environ, start_response)
-        time.clock()
+        start_time = time.time()
         ret = self.wrapped(environ, start_response)
-        self.graphdat.store(environ["REQUEST_METHOD"], environ["REQUEST_URI"], environ["SERVER_NAME"], time.clock())
+        self.graphdat.store(environ["REQUEST_METHOD"], environ["REQUEST_URI"], environ["SERVER_NAME"], (time.time() - start_time) * 1000)
         return ret
         
