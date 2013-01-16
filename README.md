@@ -17,3 +17,10 @@ If not (say if it is a function from a different module, or created using a fact
 application = make_application() # your existing endpoint
 from graphdat_sdk_python import *
 application = graphdat.Wrapper((application))
+
+uWSGI
+-----
+
+The only proviso with uWSGI is that is be started with threads enabled. E.g. (this is the command to start MoinMoin under uWSGI with threads enabled)
+
+PYTHONPATH=~/src/ uwsgi --enable-threads http :8080 --wsgi-file wiki/server/moin.wsgi
