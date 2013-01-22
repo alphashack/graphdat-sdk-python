@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 from ctypes import *
-sdk = cdll.LoadLibrary("libgraphdat-1.0.0.so")
+sdk = cdll.LoadLibrary("libgraphdat-1.0.so")
 
 sdk.graphdat_init2.argtypes = [c_char_p, c_char_p, c_void_p, c_void_p]
 sdk.graphdat_term2.argtypes = [c_void_p]
