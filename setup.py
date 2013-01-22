@@ -18,23 +18,22 @@ class cd:
 
 from distutils.command.build import build
 from distutils import log
+from distutils.errors import *
 
 class Build(build):
 	def run(self):
 		log.info("Configuring Graphdat Shared Library")
+		done = False
 		with cd("graphdat/lib/module_graphdat"):
-			os.system("chmod u+x config.guess")
-			os.system("chmod u+x config.sub")
-			os.system("chmod u+x configure")
-			os.system("chmod u+x depcomp")
-			os.system("chmod u+x install-sh")
-			os.system("chmod u+x ltmain.sh")
-			os.system("chmod u+x missing")
-			os.system("./configure")
-			log.info("Building Graphdat Shared Library")
-			os.system("make")
-			log.info("Installing Graphdat Shared Library")
-			os.system("make install")
+			if 0 == os.system("autoreconf --install"):
+				if 0 == os.system("./configure"):
+					log.info("Building Graphdat Shared Library")
+					if 0 == os.system("make"):
+						log.info("Installing Graphdat Shared Library")
+						if 0 == os.system("sudo make install"):
+							done = True
+		if not done:
+			raise DistutilsError("Graphdat build failed")
 		build.run(self)
 
 # List source files in graphdat/lib
@@ -54,7 +53,7 @@ from distutils.core import setup
 setup(
 	cmdclass={'build' : Build},
 	name='graphdat',
-	version='1.2',
+	version='1.3',
 	description='Graphdat instrumentation module',
 	long_description='Instrument WSGI applications to send performance data back to your graphs at graphdat.com',
 	author='Alphashack',
