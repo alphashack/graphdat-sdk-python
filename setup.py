@@ -53,7 +53,7 @@ from distutils.core import setup
 setup(
 	cmdclass={'build' : Build},
 	name='graphdat',
-	version='1.5',
+	version='1.6',
 	description='Graphdat instrumentation module',
 	long_description='Instrument WSGI applications to send performance data back to your graphs at graphdat.com',
 	author='Alphashack',

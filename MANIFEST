@@ -4,7 +4,7 @@ README.txt
 setup.py
 graphdat/__init__.py
 graphdat/agent.py
-graphdat/graphdat.py
+graphdat/wrappers.py
 graphdat/lib/module_graphdat/Makefile.am
 graphdat/lib/module_graphdat/README.md
 graphdat/lib/module_graphdat/configure.ac
