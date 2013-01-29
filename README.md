@@ -21,8 +21,8 @@ To use the module, you need to wrap your WSGI application entry point with the s
 If you have a declared function endpoint then you can use the decorator:
 
 ```python
-from graphdat import *
-@graphdat.Wrapper
+from graphdat import WSGIWrapper
+@WSGIWrapper
 def application(environ, start_response { # your existing endpoint
 	...
 }
@@ -32,8 +32,8 @@ If not (say if it is a function from a different module, or created using a fact
 
 ```python
 application = framework.WSGIHandler() # your existing endpoint
-from graphdat import *
-application = graphdat.Wrapper(application)
+from graphdat import WSGIWrapper
+application = WSGIWrapper(application)
 ```
 
 uWSGI

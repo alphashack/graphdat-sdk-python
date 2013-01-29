@@ -3,7 +3,7 @@
 import agent
 import time
 
-class Wrapper(object):
+class WSGIWrapper(object):
     def __init__(self, app):
     	self.wrapped = app
     	self.api = agent.Api()

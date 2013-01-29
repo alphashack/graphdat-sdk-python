@@ -1,8 +1,8 @@
 #from __future__ import print_function
-import wrapper
+from graphdat import WSGIWrapper
 from time import sleep
 
-@wrapper.Wrapper
+@WSGIWrapper
 def application(env, start_response):
     print("app", env, start_response)
     sleep(0.5)
