@@ -51,7 +51,7 @@ Dependencies
 In order to correctly compile and use the python package and its shared library, you will need these tools / libraries:
 
 build-essential
-autotools
+automake
 python-dev
 libtool
 
