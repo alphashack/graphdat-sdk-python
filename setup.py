@@ -31,6 +31,8 @@ class Build(build):
 					if 0 == os.system("make"):
 						log.info("Installing Graphdat Shared Library")
 						if 0 == os.system("sudo make install"):
+							log.info("Running ldconfig")
+							os.system("sudo ldconfig")
 							done = True
 		if not done:
 			raise DistutilsError("Graphdat build failed")
@@ -53,7 +55,7 @@ from distutils.core import setup
 setup(
 	cmdclass={'build' : Build},
 	name='graphdat',
-	version='1.6',
+	version='1.7',
 	description='Graphdat instrumentation module',
 	long_description='Instrument WSGI applications to send performance data back to your graphs at graphdat.com',
 	author='Alphashack',
