@@ -1,1 +1,1 @@
-from .wrappers import WSGIWrapper
+from .graphdat import WSGIWrapper
