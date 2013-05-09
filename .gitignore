@@ -39,4 +39,4 @@ nosetests.xml
 # Sublime
 .ropeproject
 *.sublime-project
-*.sublime-workspave
+*.sublime-workspace
