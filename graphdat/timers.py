@@ -1,3 +1,4 @@
+import re
 import time
 from dotdict import dotdict
 
@@ -177,6 +178,8 @@ class Timers(object):
         # check the args
         if (not regex or not value):
             return value
+        # is the regex compiled
+        regex = hasattr(regex, "match") and regex or re.compile(regex)
         # does the regex match
         search = regex.search(value)
         if (not search):
@@ -185,14 +188,16 @@ class Timers(object):
         if (len(groups) == 0):
             return value
         # do the replacement
-        newValue = ''
         index = 0
-        for i in range(1, len(groups) + 1):
-            newValue += value[index:search.start(i)] + '?'
+        keys = dict(zip(regex.groupindex.values(), regex.groupindex.keys()))
+        newValue = ''
+        for i in range(1, len(groups)+1):
+            key = (keys and i in keys) and (':' + keys[i]) or '?'
+            newValue += (value[index:search.start(i)] + key)
             index = search.end(i)
         newValue += value[index:]
-
         return newValue
+
 
     def _getRequestUri(self):
         scheme = self._request["wsgi.url_scheme"]
