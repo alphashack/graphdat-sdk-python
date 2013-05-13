@@ -4,8 +4,8 @@ import struct
 import sys
 import time
 from Queue import Queue
-from msgpack_pure import packs, unpacks
-
+#from msgpack_pure import packs, unpacks
+from msgpack import packb as packs, unpackb as unpacks
 
 # TODO:
 # - put sending of messages into their own thread
