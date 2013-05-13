@@ -17,11 +17,11 @@ class Agent(object):
     def __init__(self, graphdat):
         self._graphdat = graphdat
         self._logger = self._graphdat.logger
-        self._pid = str(os.getpid())
+        self._pid = os.getpid()
         self._queue = Queue()
         self._servername = socket.gethostname()
 
-        self._send = None
+        self._push = None
         self._sock = None
         self._socketopen = False
         self._useFileSocket = bool(self._graphdat.socketFile)
@@ -55,16 +55,17 @@ class Agent(object):
         self._logger.info('attempting connection to %s' % self._graphdat.socketDesc)
         try:
             if self._useFileSocket:
-                self._send = self._sendfilesocket
+                self._push = self._sendfilesocket
                 self._sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                self._sock.settimeout(1)
                 self._sock.connect(self._graphdat.socketFile)
                 self._socketopen = True
             else:
-                self._send = self._sendudp
+                self._push = self._sendudp
                 self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                 self._socketopen = True
 
-            self._send = self._sendlogger
+            # self._send = self._sendlogger
         except socket.error, msg:
             self._socketopen = False
             self._logger.error(msg)
@@ -74,8 +75,10 @@ class Agent(object):
             try:
                 self._logger.info('closing socket %s' % self._graphdat.socketDesc)
                 self._sock.close()
+                self._socketopen = False
             except Exception as e:
                 self._logger.error(e)
+                self._socketopen = False
 
     def _send(self, message):
         retries = 2
@@ -98,18 +101,19 @@ class Agent(object):
                 continue
 
             try:
-                self._send(buffer)
-                if (message):
-                    self._send(packed)
-                    sent = True
-                    self._lastSentData = time.time()
+                #self._push(buffer)
+                #if (message):
+                self._push(packed)
+                sent = True
+                self._lastSentData = time.time()
             except socket.error:
                 self._closesocket()
             except:
                 self._logger.error("Unexpected error:", sys.exc_info()[0])
 
             if (sent):
-                self._logger.debug("Message sent: " + unpacks(message))
+                self._logger.debug("Message sent")
+                self._logger.debug(unpacks(message, use_list=True))
                 break
             else:
                 self._logger.error("self._send: Sending message failed")
