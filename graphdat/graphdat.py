@@ -1,7 +1,6 @@
 import functools
 import logging
 import sys
-import time
 
 from agent import Agent
 import import_hook
@@ -111,50 +110,42 @@ def wrap_wsgi_application(application):
 
 class WSGIWrapper(object):
 
-    def __init__(self, app):
+    def __init__(self, app, routes):
 
         self._graphdat = graphdat()
         self._logger = self._graphdat.logger
+        self._routes = routes
 
         functools.update_wrapper(self, app, available_attrs(app))
         self.wrapped = app
         print "wrapped"
 
-    def __get__(self, instance, klass):
-        print "__get__"
-        print instance
-        if instance is None:
-            return self
-
-        desc = self.wrapped.__get__(instance, klass)
-        return self.__class__(desc)
-
     def __call__(self, environ, start_response):
         print "__call__"
 
         # add graphdat to the request so you can call the begin & end methods
-        self._onRequestStart(environ)
+        self._onRequestStart(environ, self._routes)
 
         try:
-            result = self.wrapped(environ, self._start_response(environ, start_response))
+            result = self.wrapped(environ, start_response)
         except BaseException, e:
             self._logger.exception(e)
+            self._onRequestEnd(environ)
             raise
 
-        #return Iterable(trace, result)
-        return result
+        return Iterable(self._onRequestStart, self._onRequestEnd, environ, result)
+        #return result
 
     def _start_response(self, environ, start_response):
         def callback(status, headers, exc_info=None):
-            # save the metrics
-            self._onRequestEnd(environ)
-
             # Call upstream start_response
             start_response(status, headers, exc_info)
+            # save the metrics
+            self._onRequestEnd(environ)
         return callback
 
-    def _onRequestStart(self, request):
-        timers = Timers(request, self._graphdat.logger)
+    def _onRequestStart(self, request, routes):
+        timers = Timers(request, routes, self._graphdat.logger)
         request['graphdat'] = timers
         return request
 
@@ -167,15 +158,23 @@ class WSGIWrapper(object):
         if (metrics):
             self._graphdat.agent.add(metrics)
 
+    # def _urls(self, urllist, depth=0):
+    #     for entry in urllist:
+    #         print "  " * depth, entry.regex.pattern
+    #         if hasattr(entry, 'url_patterns'):
+    #             self._urls(entry.url_patterns, depth + 1)
+
 
 class Iterable(object):
-    def __init__(self, trace, generator):
-        self.trace = trace
+    def __init__(self, onRequestStart, onRequestEnd, environ, generator):
+        self.onRequestStart = onRequestStart
+        self.onRequestEnd = onRequestEnd
+        self.environ = environ
         self.generator = generator
 
     def __iter__(self):
-        if not self.trace._start:
-            self.trace._start = time.time()
+        if not 'graphdat' in self.environ:
+            self.onRequestStart(self.environ)
 
         for item in self.generator:
             yield item
@@ -185,9 +184,9 @@ class Iterable(object):
             if hasattr(self.generator, 'close'):
                 self.generator.close()
         except:
-            self.trace.__exit__(*sys.exc_info())
+            self.onRequestEnd(self.environ)
         else:
-            self.trace.__exit__(None, None, None)
+            self.onRequestEnd(self.environ)
 
 
 def available_attrs(f):
