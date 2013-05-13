@@ -25,7 +25,7 @@ class Timer(object):
         result.firsttimestampoffset = self.offset * 1000
         result.responsetime = self.responseTime
         result.callcount = self.callcount
-        result.cputime = self.cputime
+        #result.cputime = self.cputime
         result.name = self.path
         return result
 
@@ -45,7 +45,8 @@ class Timers(object):
     ROOT_REQUEST = "/"
     REQUEST_KEYS = ("wsgi.url_scheme", "HTTP_HOST", "PATH_INFO", "QUERY_STRING", "REQUEST_METHOD")
 
-    def __init__(self, request, logger):
+    def __init__(self, request, regexRoutes, logger):
+        self._regexRoutes = regexRoutes
         self._logger = logger
         self._request = request
         self._requestStart = time.time()
@@ -88,9 +89,9 @@ class Timers(object):
         payload.source = 'HTTP'
         payload.route = self._getRequestMethod() + ' ' + self._getRequestPath()
         payload.timestamp = self._requestStart
-        payload.cputime = 0.0
+        #payload.cputime = 0.0
         payload.host = self._getRequestHost()
-        payload.context = self._msgpack()
+        payload.context = context
         payload.responsetime = context[0].responsetime
 
         self._logger.debug('Request %s took %f' % (payload.route, payload.responsetime))
@@ -130,8 +131,6 @@ class Timers(object):
 
         duration = (time.time() - self._current.lastTimerStart) * 1000
         self._current.responseTime += duration
-        if (self._current.path != self._root.path):
-            self._root.responseTime += self._current.responseTime
 
         self._logger.debug("Ending timer for path %s" % self._current.path)
         self._current = self._current.parent
@@ -165,7 +164,35 @@ class Timers(object):
         path = self._request["PATH_INFO"]
         query_sep = self._request["QUERY_STRING"] and '?' or ''
         query = self._request["QUERY_STRING"]
-        return '%s%s%s' % (path, query_sep, query)
+        uri = '%s%s%s' % (path, query_sep, query)
+
+        if (self._regexRoutes):
+            for regex in self._regexRoutes:
+                match = regex.match(uri)
+                if match:
+                    return self._replace(regex, uri)
+        return uri
+
+    def _replace(regex, value):
+        # check the args
+        if (not regex or not value):
+            return value
+        # does the regex match
+        search = regex.search(value)
+        if (not search):
+            return value
+        groups = search.groups()
+        if (len(groups) == 0):
+            return value
+        # do the replacement
+        newValue = ''
+        index = 0
+        for i in range(1, len(groups) + 1):
+            newValue += value[index:search.start(i)] + '?'
+            index = search.end(i)
+        newValue += value[index:]
+
+        return newValue
 
     def _getRequestUri(self):
         scheme = self._request["wsgi.url_scheme"]
