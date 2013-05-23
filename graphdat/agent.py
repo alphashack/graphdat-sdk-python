@@ -1,55 +1,46 @@
-import os
 import socket
 import struct
 import sys
 import time
 import threading
+setattr(threading, '__debug__', True)
 from Queue import Queue
-from msgpack import packb as packs, unpackb as unpacks
+from msgpack import (
+    packb as packs,
+    unpackb as unpacks
+)
 
 __all__ = ['Agent']
 
-# The queue that will hold all of the messages to be sent to graphdat
-_queue = Queue()
-
-# The background worker that will push the data to graphdat
-_backgroud = None
 
 class Agent(object):
+
     """
     Validate and package the metrics for graphdat
     """
 
+    # if the queue gets larger than this, stop adding metrics instead of blocking
+    MAX_QUEUE_SIZE = 100
+
+    # The queue that will hold all of the messages to be sent to graphdat
+    _queue = Queue()
+
+    # The background worker that will push the data to graphdat
+    _backgroundWorker = None
+
     def __init__(self, graphdat):
 
-         # the graphdat instance, logger and configuration is stored in here
-        if not graphdat:
-            raise TypeError
-        self._graphdat = graphdat
-
-        if not hasattr(graphdat, 'logger'):
-            import logging
-            self._logger = logging.getLogger(__name__)
-        else:
-            self._logger = self._graphdat.logger
-
-        # pid of the process we are running, automatically added to the metrics
-        try:
-            self._pid = os.getpid()
-        except:
-            self._pid = 0
-
-        # hostname of the server, automatically added to the metrics
-        try:
-            self._servername = socket.gethostname()
-        except:
-            self._severname = "Unknown"
+        if graphdat is None:
+            raise TypeError(
+                "the graphdat parameter should not be None")
+        self.graphdat = graphdat
+        self.log = self.graphdat.log
 
         # create the background worker thread if it is not running already
-        if not _backgroud or not _backgroud.isAlive():
-            _background = _SendToGraphdatThread(self._graphdat, _queue)
-            _background.setDaemon(True)
-            _background.start()
+        if not self._backgroundWorker or not self._backgroundWorker.isAlive():
+            self._backgroundWorker = _SendToGraphdat(self.graphdat, self._queue)
+            self._backgroundWorker.setDaemon(True)
+            self._backgroundWorker.start()
 
     def add(self, metrics):
         """
@@ -57,68 +48,60 @@ class Agent(object):
         """
 
         # if we have no data, no worries, continue on
-        if not metrics:
+        if metrics is None:
             return
 
         # if its a string, we cant do anything with it and we shouldnt
-        # be getting it in the first place.
-        if isinstance(metrics, basestring):
-            raise TypeError
+        # be getting it in the first place, something is probably wrong
+        if isinstance(metrics, str):
+            raise TypeError(
+                "the metrics should not be a string value")
 
         # if its a single metric, just wrap it
         if not hasattr(metrics, "__iter__"):
             metrics = (metrics)
 
-        for sample in metrics:
+        for metric in metrics:
             # Only HTTP metrics are supported
-            if sample.source != 'HTTP':
+            if metric.source != 'HTTP':
                 continue
-            if not sample.route:
-                self._logger.debug(
-                    "graphdat could not get a the route from the trace")
+            if not metric.route:
+                self.log("graphdat could not get a the route from the trace")
                 continue
 
-            # set the pid the hostname in all metrics
-            sample.host = self._servername
-            sample.pid = self._pid
+            # send the metric to the queue as long as we have room
+            if self._queue.qsize() < self.MAX_QUEUE_SIZE:
+                self._queue.put(metric)
 
-            # msgpack the metrics and send  it to the queue
-            sample = packs(sample)
-            _queue.put(sample)
+class _SendToGraphdat(threading.Thread):
 
-
-class _SendToGraphdatThread(threading.Thread):
     """
     Create a separate thread to pull from the queue
     and send the messages to graphdat.
     """
 
-    # How ofter should we process the queue in seconds
-    SLEEP_INTERVAL = 2
-
-    def __init__(self, graphdat, queue,
-                      sleepInterval=SLEEP_INTERVAL):
+    def __init__(self, graphdat, queue):
 
         threading.Thread.__init__(self)
 
         # the graphdat instance and logger
-        if not graphdat:
-            raise TypeError
+        if graphdat is None:
+            raise TypeError(
+                "the graphdat parameter should not be None")
         self.graphdat = graphdat
 
-        if not hasattr(graphdat, 'logger'):
-            raise TypeError
-        self.logger = graphdat.logger
+        self.dump = graphdat.dump
+        self.error = graphdat.error
+        self.log = graphdat.log
+
         # the queue to pull the messages from
-        if not queue:
-            raise TypeError
+        if queue is None:
+            raise TypeError(
+                "the queue parameter should not be None")
         self.queue = queue
 
-        # the interval we should sleep if there are no message in the queue
-        self.sleepInterval = sleepInterval
-
         # keep track of the last time we sent the data or a heartbeart
-        self.lastSentData = None
+        self.lastSentData = 0.0
 
         # how we talk to the graphdat agent
         if bool(self.graphdat.socketFile):
@@ -126,37 +109,43 @@ class _SendToGraphdatThread(threading.Thread):
         else:
             self.transport = _UDPSocket(self.graphdat)
 
+        # if the transport requires a heartbeat, start it
+        if hasattr(self.transport, 'heartbeatInterval'):
+            self.__heartbeat()
+
     def run(self):
         while True:
-            # if there are no messages, sleep
-            if self.queue.empty():
-                time.sleep(self.sleepInterval)
-
-                # if we have been sleeping for a while, the transport
-                # layer may need to be notified that we are still alive
-                if hasattr(self.transport, 'heartbeatInterval') and self.lastSentData:
-                    now = time.time()
-                    if (now - self.lastSentData) > self.transport.heartbeatInterval:
-                        self.transport.sendHeartbeart()
-                        self.lastSentData = now
-
-                # all done here
-                continue
-
             # grab the next message
-            message = self.queue.get()
+            message = self.queue.get(block=True)
+
+            # msgpack it
+            message = packs(message)
 
             # send the message
             success = self.transport.send(message)
+            self.lastSentData = time.time()
 
             # tell the queue we are done
             self.queue.task_done()
 
             if (success):
-                self.logger.debug("Message sent")
-                self.logger.debug(unpacks(message, use_list=True))
+                self.log("Message sent")
+                self.dump(unpacks(message, use_list=True))
             else:
-                self.logger.error("Sending metrics to Graphdat failed")
+                self.error("Sending metrics to Graphdat failed")
+
+    def __heartbeat(self):
+        now = time.time()
+        elapsed = now - self.lastSentData
+
+        if elapsed > self.transport.heartbeatInterval:
+            self.transport.sendHeartbeart()
+            self.lastSentData = now
+
+        # restart the timer
+        t = threading.Timer(self.transport.heartbeatInterval, self.__heartbeat)
+        t.daemon = True
+        t.start()
 
 class _FileSocket(object):
 
@@ -165,7 +154,7 @@ class _FileSocket(object):
     """
 
     # the interval we should send heart beats to the file socket
-    HEARTBEAT_INTERVAL = 30
+    HEARTBEAT_INTERVAL = 20
     # How many attempts do we use to send to the file socket.
     SEND_ATTEMPTS = 2
 
@@ -173,17 +162,20 @@ class _FileSocket(object):
                       heartbeatInterval = HEARTBEAT_INTERVAL,
                       sendAttempts = SEND_ATTEMPTS):
 
-        self.logger = graphdat.logger
+        self.error = graphdat.error
+        self.log = graphdat.log
+
+        # the location of the file socket
         self.socketFile = graphdat.socketFile
 
-        # the file socket needs a heart beat to stay open
+        # the file socket needs a hearbeat to stay open
         self.heartbeatInterval = heartbeatInterval
 
         # How many attempts do we use to send to the file socket.
         self.sendAttempts = sendAttempts
 
-        self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        self.sock.settimeout(1)
+        # the file socket
+        self.sock = None
         self.isOpen = False
 
     def __del__(self):
@@ -211,17 +203,22 @@ class _FileSocket(object):
                 # the message we are sending is
                 self.sock.sendall(header)
 
-                # if sending the header worked, send the metrics
-                if (message):
+                # if sending the header worked, send the message
+                if len(message) > 0:
                     self.sock.sendall(message)
 
                 # success!
                 sent = True
+                break
 
-            except socket.error:
+            except socket.error, msg:
+                self.error("socket error")
+                self.error(msg)
                 self._disconnect()
-            except:
-                self.logger.error("Unexpected error:", sys.exc_info()[0])
+            except Exception, msg:
+                self.error("Unexpected error")
+                self.error(msg)
+                self._disconnect()
 
         return sent
 
@@ -234,22 +231,25 @@ class _FileSocket(object):
 
     def _connect(self):
         try:
-            self.logger.info("opening socket %s" % self.socketFile)
+            self.log("opening socket " + self.socketFile)
+            self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            self.sock.settimeout(1)
+
             self.sock.connect(self.socketFile)
             self.isOpen = True
-        except socket.error, msg:
+        except Exception, msg:
+            self.error(msg)
             self.isOpen = False
-            self.logger.error(msg)
 
     def _disconnect(self):
-        if self.sock and hasattr(self.sock, 'close'):
-            try:
-                self.logger.info("closing socket %s" % self.socketFile)
-                self.sock.close()
-            except Exception as e:
-                self.logger.error(e)
-            finally:
-                self._socketopen = False
+        try:
+            self.log("closing socket %s" % self.socketFile)
+            self.sock.close()
+            self.sock = None
+        except Exception, msg:
+            self.error(msg)
+
+        self.isOpen = False
 
 class _UDPSocket(object):
     """
@@ -257,21 +257,20 @@ class _UDPSocket(object):
     """
 
     def __init__(self, graphdat):
-        self.logger = graphdat.logger
+
+        self.error = graphdat.error
         self.host = graphdat.socketHost
         self.port = graphdat.socketPort
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
-         # the UDP socket does not need a heart beat to stay open
-        self.heartBeatRequired = False
+        self.sock = None
 
     def send(self, message):
         """
         Send the metrics to graphdat
         """
         try:
+            self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             self.sock.sendto(message, (self.host, self.port))
             return True
         except:
-            self.logger.error("Unexpected error:", sys.exc_info()[0])
+            self.error("Unexpected error:", sys.exc_info()[0])
             return False
