@@ -3,7 +3,6 @@ import struct
 import sys
 import time
 import threading
-setattr(threading, '__debug__', True)
 from Queue import Queue
 from msgpack import (
     packb as packs,
@@ -22,10 +21,10 @@ class Agent(object):
     # if the queue gets larger than this, stop adding metrics instead of blocking
     MAX_QUEUE_SIZE = 100
 
-    # The queue that will hold all of the messages to be sent to graphdat
+    # The queue will hold all of the messages to be sent to graphdat
     _queue = Queue()
 
-    # The background worker that will push the data to graphdat
+    # The background worker push the data to graphdat
     _backgroundWorker = None
 
     def __init__(self, graphdat):
@@ -101,7 +100,7 @@ class _SendToGraphdat(threading.Thread):
         self.queue = queue
 
         # keep track of the last time we sent the data or a heartbeart
-        self.lastSentData = 0.0
+        self.lastSentData = time.time()
 
         # how we talk to the graphdat agent
         if bool(self.graphdat.socketFile):
@@ -118,12 +117,15 @@ class _SendToGraphdat(threading.Thread):
             # grab the next message
             message = self.queue.get(block=True)
 
+            # we have a message to send, the heart beat
+            # can take a break
+            self.lastSentData = time.time()
+
             # msgpack it
             message = packs(message)
 
             # send the message
             success = self.transport.send(message)
-            self.lastSentData = time.time()
 
             # tell the queue we are done
             self.queue.task_done()
@@ -154,9 +156,9 @@ class _FileSocket(object):
     """
 
     # the interval we should send heart beats to the file socket
-    HEARTBEAT_INTERVAL = 20
+    HEARTBEAT_INTERVAL = 30
     # How many attempts do we use to send to the file socket.
-    SEND_ATTEMPTS = 2
+    SEND_ATTEMPTS = 3
 
     def __init__(self, graphdat,
                       heartbeatInterval = HEARTBEAT_INTERVAL,
@@ -190,9 +192,11 @@ class _FileSocket(object):
         header = struct.pack(">i", length)
 
         for i in range(self.sendAttempts):
+
             # open the socket if we are not connected
             if not self.isOpen:
                 self._connect()
+
             # if we are still not open, close the socket and try again
             if not self.isOpen:
                 self._disconnect()
@@ -201,17 +205,31 @@ class _FileSocket(object):
             try:
                 # we send the header first, it tells the agent how long
                 # the message we are sending is
-                self.sock.sendall(header)
+                headerSent = self.sock.send(header)
 
-                # if sending the header worked, send the message
-                if len(message) > 0:
-                    self.sock.sendall(message)
+                # was the header received, if not raise the error and try again
+                if headerSent != len(header):
+                    raise IOError("Socket connection was broken when sending message header")
+
+                # empty messages are used as a heartbeat to keep the socket connection open
+                # we only need to send the header
+                if length == 0:
+                    sent = True
+                    break
+
+                # send the message
+                totalSent = 0
+                while totalSent < length:
+                    sent = self.sock.send(message[totalSent:])
+                    if sent == 0:
+                        raise IOError("Socket connection was broken while sending message")
+                    totalSent += sent
 
                 # success!
-                sent = True
+                sent = (totalSent == length)
                 break
 
-            except socket.error, msg:
+            except IOError, msg:
                 self.error("socket error")
                 self.error(msg)
                 self._disconnect()
@@ -233,7 +251,7 @@ class _FileSocket(object):
         try:
             self.log("opening socket " + self.socketFile)
             self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            self.sock.settimeout(1)
+            self.sock.settimeout(3)
 
             self.sock.connect(self.socketFile)
             self.isOpen = True

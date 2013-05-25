@@ -235,7 +235,7 @@ class Timer(object):
     def __init__(self, name, offset, path, parent):
         # name of the timer ex. bar
         self.name = name
-        # time since the request started this was first called
+        # offset time since the request started this was first called
         self.offset = offset
         # path of the time ex. /foo/bar
         self.path = path
