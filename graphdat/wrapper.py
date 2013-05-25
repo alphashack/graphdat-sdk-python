@@ -4,6 +4,7 @@ import re
 import sys
 
 from agent import Agent
+from dotdictionary import DotDictionary
 from metric import Metric
 
 __all__ = ['WSGIWrapper', 'wsgi_application', 'wrap_wsgi_application']
@@ -94,8 +95,8 @@ class Iterable(object):
         self.generator = generator
 
     def __iter__(self):
-        if not 'graphdat' in self.environ:
-            self.start(self.environ)
+        #if not 'graphdat' in self.environ:
+        #    self.start(self.environ)
 
         for item in self.generator:
             yield item
@@ -113,58 +114,50 @@ class Graphdat(object):
     Graphat configuration
     """
 
-    NAME = 'Python'
     HOST = 'localhost'
     PORT = 26873
     SOCKET_FILE = '/tmp/gd.agent.sock'
-    VERSION = '0.2'
+    VERSION = '2.0'
 
     def __init__(self, options):
 
-        if options is None:
-            options = {}
+        # make options into an easy to use dictionary
+        options = DotDictionary(options or {})
 
         # should we enable the graphdat SDK to track requests
         if 'enabled' in options:
-            self.enabled = bool(options['enabled'])
+            self.enabled = bool(options.enabled)
         else:
             self.enabled = True
 
         # should graphdat log debugging output
         if 'debug' in options:
-            self.debug = bool(options['debug'])
+            self.debug = bool(options.debug)
         else:
             self.debug = True
 
         # should graphdat dump the messages being sent to the agent
         if 'messageDump' in options:
-            self.messageDump = bool(options['messageDump'])
+            self.messageDump = bool(options.messageDump)
         else:
             self.messageDump = True
 
-        # use a preconfigured logger
-        if 'logger' in options:
-            logger = options['logger']
-            self._error = logger.error
-            self._info = logger.info
+        # should graphdat use a preconfigured logger
+        self._log = DotDictionary()
+        if options.logger:
+            self._log.error = options.logger.error
+            self._log.info = options.logger.info
         else:
             logging.basicConfig(level='INFO')
-            self._error = logging.error
-            self._info = logging.info
+            self._log.error = logging.error
+            self._log.info = logging.info
 
         # UDP for Windows and File Socket for Linux
         if sys.platform == 'win32':
-            if 'port' in options:
-                self.socketPort = options['port']
-            else:
-                self.socketPort = self.PORT
-            # host is always localhost
-            self.socketHost = self.HOST
+            self.socketHost = self.HOST # host is always localhost
+            self.socketPort = options.port or self.PORT
         else:
-            if 'socketFile' in options:
-                self.socketFile = options['socketFile']
-            else:
-                self.socketFile = self.SOCKET_FILE
+            self.socketFile = options.socketFile or self.SOCKET_FILE
 
         self.log("Graphdat (v%s) is %s" % (self.VERSION, self.enabled and 'enabled' or 'disabled'))
 
@@ -186,14 +179,14 @@ class Graphdat(object):
     def add(self, metrics):
         self.agent.add(metrics)
 
-    def log(self, message):
-        if self.debug and message is not None:
-            self._info(message)
+    def log(self, msg, *args, **kwargs):
+        if self.debug:
+            self._log.info(msg, *args, **kwargs)
 
-    def error(self, message):
-        if self.debug and message is not None:
-            self._error(message)
+    def error(self, msg, *args, **kwargs):
+        if self.debug:
+            self._log.error(msg)
 
-    def dump(self, data):
-        if self.messageDump and data is not None:
-            self._info(data)
+    def dump(self, msg, *args, **kwargs):
+        if self.messageDump:
+            self._log.info(msg, *args, **kwargs)
