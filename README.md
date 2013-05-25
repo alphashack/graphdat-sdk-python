@@ -1,22 +1,18 @@
 # Graphdat SDK for Python
 
+## A heart rate monitor for you apps
+
 Graphdat lets you visualise the performance of your servers and applications in real time and shows you what to fix.
 
-For Free. For ever.
+See an issue, drill into it. Find out the process or line of code causing the bottleneck. Fix it. Deploy code.
 
-It takes 5 minutes to setup after which you can watch your server / app performance in real time on interfaces customised for TV, PC and large / small touch devices. See an issue, drill into it. Find out the process or line of code causing the bottleneck. Fix it. Deploy code. Watch in real time the performance improvement.
+Watch in real time the performance improvement.
 
 ![preview](http://media.tumblr.com/c350f6338c4955f29f7245fa1e75d309/tumblr_inline_mhctexmC8F1qz4rgp.png)
 
 ### Dependencies
 * Python 2.6 or greater
-* automake
-* build-essential
-* libtool
-* python-dev
 * A [Graphdat](http://www.graphdat.com/) account
-
-Most current Linux distributions (including Mac OS X) comes with Python in the base packages, in order to compile and use the Graphdat python package and its shared library though, you will need some additional tools / libraries.
 
 ### Installing
 
@@ -25,6 +21,7 @@ We recommend installing graphdat with pip:
 ```
 pip install graphdat
 ```
+but we support easy_install and python setup.py install as well
 
 ### How to integrate Graphdat with your application
 
@@ -40,13 +37,20 @@ def application(environ, start_response { # your existing endpoint
 }
 ```
 
-If not (say if it is a function from a different module, or created using a factory) you can use this method:
+If not (if it is a function from a different module, or created using a factory for example) you can use this method:
 
 ```python
 application = framework.WSGIHandler() # your existing endpoint
 from graphdat import WSGIWrapper
 application = WSGIWrapper(application)
 ```
+
+Graphdat will now graph all of the URLs of your application.
+
+To add another level of integration, you can instrument your code with Graphdat to see deeper level code integration.
+
+### One level deeper
+
 
 ### uWSGI
 
@@ -56,25 +60,13 @@ The only proviso with uWSGI is that is be started with threads enabled. E.g. (th
 uwsgi --enable-threads --http :8080 --wsgi-file wiki/server/moin.wsgi
 ```
 
-### Notes
+### Links
 
-You can either install the graphdat python package, or you can indicate where it is located:
+* `Graphdat reference <http://www.graphdat.com/python>`_
+* `Bug tracker <https://github.com/alphashack/graphdat-sdk-python/issues>`_
+* `Browse source code <https://github.com/alphashack/graphdat-sdk-python>`_
+* `Detailed changelog <https://github.com/alphashack/graphdat-sdk-python/commits/master>`_
 
-```
-PYTHONPATH=~/src/graphdat-sdk-python
-```
-
-You can either install the shared library (libgraphdat, this will happen automatically if you install the pythonpackage) or just indicate where it is located:
-
-```
-LD_LIBRARY_PATH=/usr/local/lib/
-```
-
-We have noticed that on some linux distributions the directory where the library is installed by default is NOT on the default LD_LIBRARY_PATH. In this case you will need to add the path (either temporarily or permanently).
-
-###Contributing
-
-I just created this project for learning some Python. Please help me to make it better!
 
 ## Copyright and license
 
