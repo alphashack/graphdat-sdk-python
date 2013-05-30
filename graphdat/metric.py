@@ -46,7 +46,7 @@ class Metric(object):
     # the starting point for a timer
     ROOT_REQUEST = "/"
     # keys that need to be in the request for a valid metric
-    REQUEST_KEYS = ("HTTP_HOST", "REQUEST_METHOD","PATH_INFO")
+    REQUEST_KEYS = ("HTTP_HOST", "REQUEST_METHOD", "PATH_INFO")
 
     def __init__(self, request, regexRoutes, infoLogger, errorLogger):
         self.request = request
@@ -156,7 +156,7 @@ class Metric(object):
             self.log('timers :: could not end timer %s because it is not the last timer to begin' % name)
             return False
 
-        duration = (time.time() - self.current.lastTimerStart) * 1000 # need it in milliseconds
+        duration = (time.time() - self.current.lastTimerStart) * 1000  # need it in milliseconds
         self.current.responseTime += duration
 
         self.log("Ending timer for path %s" % self.current.path)
@@ -216,7 +216,7 @@ class Metric(object):
         index = 0
         keys = dict(zip(regex.groupindex.values(), regex.groupindex.keys()))
         newValue = ''
-        for i in range(1, len(groups)+1):
+        for i in range(1, len(groups) + 1):
             key = (keys and i in keys) and (':' + keys[i]) or '?'
             newValue += (value[index:search.start(i)] + key)
             index = search.end(i)

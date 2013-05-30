@@ -84,8 +84,8 @@ class WSGIWrapper(object):
     def _available_attrs(self, f):
     # http://bugs.python.org/issue3445
         return tuple(a for a in
-            functools.WRAPPER_ASSIGNMENTS
-            if hasattr(f, a))
+                     functools.WRAPPER_ASSIGNMENTS
+                     if hasattr(f, a))
 
 class Iterable(object):
     def __init__(self, start, end, environ, generator):
@@ -134,13 +134,13 @@ class Graphdat(object):
         if 'debug' in options:
             self.debug = bool(options.debug)
         else:
-            self.debug = True
+            self.debug = False
 
         # should graphdat dump the messages being sent to the agent
         if 'messageDump' in options:
             self.messageDump = bool(options.messageDump)
         else:
-            self.messageDump = True
+            self.messageDump = False
 
         # should graphdat use a preconfigured logger
         self._log = DotDictionary()
@@ -154,7 +154,7 @@ class Graphdat(object):
 
         # UDP for Windows and File Socket for Linux
         if sys.platform == 'win32':
-            self.socketHost = self.HOST # host is always localhost
+            self.socketHost = self.HOST  # host is always localhost
             self.socketPort = options.port or self.PORT
         else:
             self.socketFile = options.socketFile or self.SOCKET_FILE

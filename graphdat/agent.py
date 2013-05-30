@@ -161,8 +161,8 @@ class _FileSocket(object):
     SEND_ATTEMPTS = 3
 
     def __init__(self, graphdat,
-                      heartbeatInterval = HEARTBEAT_INTERVAL,
-                      sendAttempts = SEND_ATTEMPTS):
+                 heartbeatInterval=HEARTBEAT_INTERVAL,
+                 sendAttempts=SEND_ATTEMPTS):
 
         self.error = graphdat.error
         self.log = graphdat.log
