@@ -21,7 +21,7 @@ We recommend installing graphdat with pip:
 ```
 pip install graphdat
 ```
-but we support easy_install and python setup.py install as well
+but we support easy_install as well
 
 ### How to integrate Graphdat with your application
 
@@ -62,10 +62,10 @@ uwsgi --enable-threads --http :8080 --wsgi-file wiki/server/moin.wsgi
 
 ### Links
 
-* `Graphdat reference <http://www.graphdat.com/python>`_
-* `Bug tracker <https://github.com/alphashack/graphdat-sdk-python/issues>`_
-* `Browse source code <https://github.com/alphashack/graphdat-sdk-python>`_
-* `Detailed changelog <https://github.com/alphashack/graphdat-sdk-python/commits/master>`_
+* `Graphdat reference <http://www.graphdat.com/python>`
+* `Bug tracker <https://github.com/alphashack/graphdat-sdk-python/issues>`
+* `Browse source code <https://github.com/alphashack/graphdat-sdk-python>`
+* `Detailed changelog <https://github.com/alphashack/graphdat-sdk-python/commits/master>`
 
 
 ## Copyright and license
