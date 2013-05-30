@@ -5,7 +5,7 @@ except:
 
 setup(
     name='graphdat',
-    version='2.0',
+    version='2.1',
     author='Graphdat',
     author_email='support@graphdat.com',
     packages=['graphdat'],
