@@ -118,7 +118,7 @@ class Graphdat(object):
     HOST = 'localhost'
     PORT = 26873
     SOCKET_FILE = '/tmp/gd.agent.sock'
-    VERSION = '2.1'
+    VERSION = '2.2'
 
     def __init__(self, options):
 
