@@ -27,22 +27,23 @@ class WSGIWrapper(object):
     and sends the data to graphdat.  Graphdat is also added to the
     environ to allow custom drill downs.
 
-    Adding in a list of route regexs will allow graphdat to tokenize
-    urls making the resulting data more generic
+    Adding in a list of route regexs in the options willl allow graphdat to
+    tokenize urls making the resulting data more generic
     """
 
-    def __init__(self, app, options=None, routes=None):
+    def __init__(self, app, options=None):
 
         self.graphdat = Graphdat(options)
         self.log = self.graphdat.log
 
         # compile the regex's if we have any
-        if routes is not None:
-            for i in range(len(routes)):
-                regex = routes[i]
+        self.routes = []
+        if options is not None and 'routes' in options:
+            for regex in options['routes']:
                 if not hasattr(regex, 'match'):
-                    routes[i] = re.compile(regex)
-        self.routes = routes
+                    self.routes.append(re.compile(regex))
+                else:
+                    self.routes.append(regex)
 
         # wrap the application
         self.log('wrapping application')
