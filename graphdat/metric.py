@@ -201,7 +201,7 @@ class Metric(object):
                     return self._replace(regex, uri_no_slash)
         return uri
 
-    def _replace(regex, value):
+    def _replace(self, regex, value):
         # check the args
         if (regex is None or not value):
             return value
