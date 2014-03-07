@@ -38,7 +38,7 @@ class Agent(object):
         # create the background worker thread if it is not running already
         if not self._backgroundWorker or not self._backgroundWorker.isAlive():
             self._backgroundWorker = _SendToGraphdat(self.graphdat, self._queue)
-            self._backgroundWorker.setDaemon(True)
+            self._backgroundWorker.daemon = True
             self._backgroundWorker.start()
 
     def add(self, metrics):
@@ -72,12 +72,16 @@ class Agent(object):
             if self._queue.qsize() < self.MAX_QUEUE_SIZE:
                 self._queue.put(metric)
 
+
 class _SendToGraphdat(threading.Thread):
 
     """
     Create a separate thread to pull from the queue
     and send the messages to graphdat.
     """
+
+     # The heartbeat worker keeps the file socket open
+    _heartbeatWorker = None
 
     def __init__(self, graphdat, queue):
 
@@ -110,7 +114,10 @@ class _SendToGraphdat(threading.Thread):
 
         # if the transport requires a heartbeat, start it
         if hasattr(self.transport, 'heartbeatInterval'):
-            self.__heartbeat()
+            if not self._heartbeatWorker or not self._heartbeatWorker.isAlive():
+                self._heartbeatWorker = _SendHeartbeat(self.graphdat, self, self.transport)
+                self._heartbeatWorker.daemon = True
+                self._heartbeatWorker.start()
 
     def run(self):
         while True:
@@ -136,18 +143,31 @@ class _SendToGraphdat(threading.Thread):
             else:
                 self.error("Sending metrics to Graphdat failed")
 
-    def __heartbeat(self):
-        now = time.time()
-        elapsed = now - self.lastSentData
 
-        if elapsed > self.transport.heartbeatInterval:
-            self.transport.sendHeartbeart()
-            self.lastSentData = now
+class _SendHeartbeat(threading.Thread):
 
-        # restart the timer
-        t = threading.Timer(self.transport.heartbeatInterval, self.__heartbeat)
-        t.daemon = True
-        t.start()
+    """
+    Create a separate thread to send a heartbeat
+    to keep the connection open
+    """
+
+    def __init__(self, graphdat, sender, transport):
+
+        threading.Thread.__init__(self)
+
+        self.sender = sender
+        self.transport = transport
+
+    def run(self):
+        while True:
+            time.sleep(self.transport.heartbeatInterval)
+            now = time.time()
+            elapsed = now - self.sender.lastSentData
+
+            if elapsed > self.transport.heartbeatInterval:
+                self.transport.sendHeartbeat()
+                self.sender.lastSentData = now
+
 
 class _FileSocket(object):
 
@@ -240,7 +260,7 @@ class _FileSocket(object):
 
         return sent
 
-    def sendHeartbeart(self):
+    def sendHeartbeat(self):
         """
         Send a heart beat to the socket to let the agent know we are alive
         """
@@ -268,6 +288,7 @@ class _FileSocket(object):
             self.error(msg)
 
         self.isOpen = False
+
 
 class _UDPSocket(object):
     """

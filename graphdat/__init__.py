@@ -2,4 +2,4 @@ from .wrapper import WSGIWrapper
 
 __all__ = ['WSGIWrapper']
 
-__version__ = '2.2'
+__version__ = '2.3'
