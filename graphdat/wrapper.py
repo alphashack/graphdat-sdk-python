@@ -172,10 +172,10 @@ class Graphdat(object):
 
     @property
     def target(self):
-        if self.socketFile:
+        if hasattr(self, 'socketFile') and self.socketFile:
             return self.socketFile
         else:
-            return self.socketHost + ':' + self.socketPort
+            return self.socketHost + ':' + str(self.socketPort)
 
     def add(self, metrics):
         self.agent.add(metrics)

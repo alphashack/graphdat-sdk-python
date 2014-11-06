@@ -107,7 +107,7 @@ class _SendToGraphdat(threading.Thread):
         self.lastSentData = time.time()
 
         # how we talk to the graphdat agent
-        if bool(self.graphdat.socketFile):
+        if hasattr(self.graphdat, "socketFile"):
             self.transport = _FileSocket(self.graphdat)
         else:
             self.transport = _UDPSocket(self.graphdat)
