@@ -1,5 +1,7 @@
 # Graphdat SDK for Python
 
+## DEPRECATED - This is now longer in use or supported.
+
 ## A heart rate monitor for you apps
 
 Graphdat lets you visualise the performance of your servers and applications in real time and shows you what to fix.
